@@ -39,22 +39,15 @@ Parameters:
     Default: 0.0.0.0/0
     Description: Optional - CIDR/IP range for instance ssh access - defaults to 0.0.0.0/0
     Type: String
+  publicSubnet1:
+    Type: String
+  publicSubnet2:
+    Type: String
+
 Resources:
-  attachGateway:
-    DependsOn:
-    - vpc
-    - internetGateway
-    Properties:
-      InternetGatewayId:
-        Ref: internetGateway
-      VpcId:
-        Ref: vpc
-    Type: AWS::EC2::VPCGatewayAttachment
   autoScalingGroup:
     DependsOn:
     - launchTemplate
-    - publicSubnet1
-    - publicSubnet2
     Properties:
       DesiredCapacity: 2
       LaunchTemplate:
@@ -170,10 +163,6 @@ Resources:
           - - Ref: AWS::StackName
             - s3BucketReadWritePolicy
     Type: AWS::IAM::Role
-  internetGateway:
-    DependsOn:
-    - vpc
-    Type: AWS::EC2::InternetGateway
   jobQueue:
     Properties:
       ComputeEnvironmentOrder:
@@ -226,91 +215,7 @@ Resources:
 
               '
     Type: AWS::EC2::LaunchTemplate
-  publicRoute:
-    DependsOn:
-    - publicRouteTable
-    - internetGateway
-    - attachGateway
-    Properties:
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId:
-        Ref: internetGateway
-      RouteTableId:
-        Ref: publicRouteTable
-    Type: AWS::EC2::Route
-  publicRouteTable:
-    DependsOn:
-    - vpc
-    - attachGateway
-    Properties:
-      Tags:
-      - Key: Name
-        Value: Public Route Table
-      VpcId:
-        Ref: vpc
-    Type: AWS::EC2::RouteTable
-  publicSubnet1:
-    DependsOn: attachGateway
-    Properties:
-      AvailabilityZone:
-        Fn::Select:
-        - 0
-        - Fn::GetAZs:
-            Ref: AWS::Region
-      CidrBlock:
-        Fn::FindInMap:
-        - CidrMappings
-        - public-subnet-1
-        - CIDR
-      MapPublicIpOnLaunch: true
-      Tags:
-      - Key: Name
-        Value: Public Subnet 1
-      VpcId:
-        Ref: vpc
-    Type: AWS::EC2::Subnet
-  publicSubnet1RouteTableAssociation:
-    DependsOn:
-    - publicRouteTable
-    - publicSubnet1
-    - attachGateway
-    Properties:
-      RouteTableId:
-        Ref: publicRouteTable
-      SubnetId:
-        Ref: publicSubnet1
-    Type: AWS::EC2::SubnetRouteTableAssociation
-  publicSubnet2:
-    DependsOn: attachGateway
-    Properties:
-      AvailabilityZone:
-        Fn::Select:
-        - 1
-        - Fn::GetAZs:
-            Ref: AWS::Region
-      CidrBlock:
-        Fn::FindInMap:
-        - CidrMappings
-        - public-subnet-2
-        - CIDR
-      MapPublicIpOnLaunch: true
-      Tags:
-      - Key: Name
-        Value: Public Subnet 2
-      VpcId:
-        Ref: vpc
-    Type: AWS::EC2::Subnet
-  publicSubnet2RouteTableAssociation:
-    DependsOn:
-    - publicRouteTable
-    - publicSubnet2
-    - attachGateway
-    Properties:
-      RouteTableId:
-        Ref: publicRouteTable
-      SubnetId:
-        Ref: publicSubnet2
-    Type: AWS::EC2::SubnetRouteTableAssociation
+  
   s3Bucket:
     Type: AWS::S3::Bucket
   scalingPolicy:
@@ -324,8 +229,6 @@ Resources:
         TargetValue: 50
     Type: AWS::AutoScaling::ScalingPolicy
   securityGroup:
-    DependsOn:
-    - vpc
     Properties:
       GroupDescription: Instance Security Group
       SecurityGroupIngress:
@@ -334,17 +237,6 @@ Resources:
         FromPort: 22
         IpProtocol: tcp
         ToPort: 22
-      VpcId:
-        Ref: vpc
+      VpcId: !Ref vpc
     Type: AWS::EC2::SecurityGroup
-  vpc:
-    Properties:
-      CidrBlock:
-        Fn::FindInMap:
-        - CidrMappings
-        - vpc
-        - CIDR
-      EnableDnsHostnames: true
-      EnableDnsSupport: true
-    Type: AWS::EC2::VPC
 ...
